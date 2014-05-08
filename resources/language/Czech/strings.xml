@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<strings>
+    <string id="32003">Vyberte seriál</string>
+    <string id="32004">Vyberte soubor</string>
+
+    <string id="32100">Doplněk je určen pro české a slovenské titulky, zkontrolujte Vaše nastavení jazyků, pro které chcete titulky stahovat.</string>
+    <string id="32101">Otevřít nastavení?</string>
+
+    <string id="32900">Ukládání</string>
+    <string id="32901">Zkopírovat titulky do adresáře s videem pokud je přehráváno z raru</string>
+
+    <string id="32930">Statistiky</string>
+    <string id="32931">Odesílat anonymní statistiky o využití doplňku</string>
+</strings>
