@@ -4,6 +4,7 @@ from utilities import log
 import urllib, re, os, copy, xbmc, xbmcgui
 import HTMLParser
 from stats import results_with_stats
+from difflib import SequenceMatcher
 
 class NextWeekClient(object):
 
@@ -38,13 +39,62 @@ class NextWeekClient(object):
 	# 	os.rename(dest, final_dest)
 
 	# 	return final_dest
+	def get_tv_show_list(self):
+		res = urllib.urlopen(self.server_url + "/titulky/category/1-titulky")
+		if not res.getcode() == 200: return None
+		tv_shows_content = re.search("<section id=\"content\" class=\"grid-block\">(.+?)</section>", res.read(), re.IGNORECASE | re.DOTALL )
+		if tv_shows_content == None: return None
 
-	# def search(self, item):
+		tv_shows = []
+		for tv_show_html in re.findall("<div class=\"pd-subcategory\">(.+?)</div>", tv_shows_content.group(1).decode("utf-8"), re.IGNORECASE | re.DOTALL):
+			tv_show_url, tv_show_name = re.search("<a href=\"(.+?)\">(.+?)</a>", tv_show_html, re.IGNORECASE).groups()
+			tv_show_with_translation = re.search("(.+?) \(.+?\)",tv_show_name)
+			if tv_show_with_translation: tv_show_name = tv_show_with_translation.group(1)
+			tv_shows.append({ "url" : tv_show_url, "title": tv_show_name })
 
-	# 	title = item['mansearchstr'] if item['mansearch'] else item['tvshow']
+		return tv_shows
 
-	# 	tvshow_url = self.search_show_url(title)
-	# 	if tvshow_url == None: return results_with_stats(None, self.addon, title, item)
+	def search_show_url(self, title, show_list):
+		log(__name__,"Starting search by TV Show: %s" % title)
+		if not title: return None
+
+		for threshold_ratio in range(100,50,-5):
+			if threshold_ratio == None: return show_list
+			tv_show_list = []
+			for tv_show in show_list:
+				matcher = SequenceMatcher(None, re.sub(r'(?i)^The ',"", tv_show["title"]), re.sub(r'(?i)^The ',"", title)).ratio() * 100
+				if matcher >= threshold_ratio: tv_show_list.append(tv_show)
+
+			if tv_show_list: break
+
+		if not tv_show_list: tv_show_list = show_list
+
+		if (len(tv_show_list) == 0):
+			log(__name__,"No TV Show found")
+			return None
+		elif (len(tv_show_list) == 1):
+			log(__name__,"One TV Show found, autoselecting")
+			tvshow_url = tv_show_list[0]['url']
+		else:
+			log(__name__,"More TV Shows found, user dialog for select")
+			menu_dialog = []
+			for tv_show in tv_show_list: menu_dialog.append(tv_show['title'])
+			dialog = xbmcgui.Dialog()
+			found_tv_show_id = dialog.select(self._t(32003), menu_dialog)
+			if (found_tv_show_id == -1): return None # cancel dialog
+			tvshow_url = tv_show_list[found_tv_show_id]['url']
+
+		log(__name__,"Selected show URL: " + tvshow_url)
+		return tvshow_url
+
+	def search(self, item):
+		title = item['mansearchstr'] if item['mansearch'] else item['tvshow']
+
+		all_tv_show_list = self.get_tv_show_list()
+		if not all_tv_show_list: return results_with_stats(None, self.addon, title, item)
+
+		tvshow_url = self.search_show_url(title, all_tv_show_list)
+		if tvshow_url == None: return results_with_stats(None, self.addon, title, item)
 
 	# 	found_season_subtitles = self.search_season_subtitles(tvshow_url,item['season'])
 	# 	log(__name__, ["Season filter", found_season_subtitles])
@@ -98,47 +148,6 @@ class NextWeekClient(object):
 	# 		if (season_subtitle['episode'] == int(episode) and season_subtitle['season'] == int(season)):
 	# 			return season_subtitle
 	# 	return None
-
-	# def search_show_url(self,title):
-	# 	log(__name__,"Starting search by TV Show: %s" % title)
-	# 	if not title: return None
-
-	# 	enc_title = urllib.urlencode({ "q" : title})
-	# 	res = urllib.urlopen(self.server_url + "/vyhledavani/?" + enc_title)
-	# 	found_tv_shows = []
-	# 	if re.search("/vyhledavani/\?q=",res.geturl()):
-	# 		log(__name__,"Parsing search result")
-	# 		res_body = re.search("<ul class=\"list serieslist\">(.+?)</ul>",res.read(),re.IGNORECASE | re.DOTALL)
-	# 		if res_body:
-	# 			for row in re.findall("<li>(.+?)</li>", res_body.group(1), re.IGNORECASE | re.DOTALL):
-	# 				show = {}
-	# 				show_reg_exp = re.compile("<h3><a href=\"(.+?)\">(.+?)</a></h3>",re.IGNORECASE | re.DOTALL)
-	# 				show['url'], show['title'] = re.search(show_reg_exp, row).groups()
-	# 				found_tv_shows.append(show)
-	# 	else:
-	# 		log(__name__,"Parsing redirect to show URL")
-	# 		show = {}
-	# 		show['url'] = re.search(self.server_url + "(.+)",res.geturl()).group(1)
-	# 		show['title'] = title
-	# 		found_tv_shows.append(show)
-		
-	# 	if (len(found_tv_shows) == 0):
-	# 		log(__name__,"No TV Show found")
-	# 		return None
-	# 	elif (len(found_tv_shows) == 1):
-	# 		log(__name__,"One TV Show found, autoselecting")
-	# 		tvshow_url = found_tv_shows[0]['url']
-	# 	else:
-	# 		log(__name__,"More TV Shows found, user dialog for select")
-	# 		menu_dialog = []
-	# 		for found_tv_show in found_tv_shows: menu_dialog.append(found_tv_show['title'])
-	# 		dialog = xbmcgui.Dialog()
-	# 		found_tv_show_id = dialog.select(self._t(32003), menu_dialog)
-	# 		if (found_tv_show_id == -1): return None # cancel dialog
-	# 		tvshow_url = found_tv_shows[found_tv_show_id]['url']
-		
-	# 	log(__name__,"Selected show URL: " + tvshow_url)
-	# 	return tvshow_url
 
 	# def search_season_subtitles(self, show_url, show_series):
 	# 	res = urllib.urlopen(self.server_url + show_url + "titulky/?season=" + show_series)
