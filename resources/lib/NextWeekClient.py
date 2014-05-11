@@ -89,7 +89,22 @@ class NextWeekClient(object):
 		return tvshow_url
 
 	def search(self, item):
-		title = item['mansearchstr'] if item['mansearch'] else item['tvshow']
+
+		if item['mansearch']:
+			title = item['mansearchstr']
+			dialog = xbmcgui.Dialog()
+			item['season'] = dialog.numeric(0, self._t(32111), item['season'])
+			item['episode'] = dialog.numeric(0, self._t(32111), item['episode'])
+		else:
+			title = item['tvshow']
+
+		if not title or not item['season'] or not item['episode']:
+			xbmc.executebuiltin("XBMC.Notification(%s,%s,5000,%s)" % (
+						self.addon.getAddonInfo('name'), self._t(32110),
+						os.path.join(xbmc.translatePath(self.addon.getAddonInfo('path')).decode("utf-8"),'icon.png')
+			))
+			log(__name__, ["Input validation error", title, item['season'], item['episode']])
+			return results_with_stats(None, self.addon, title, item)
 
 		if item['3let_language'] and "cze" not in item['3let_language']:
 			dialog = xbmcgui.Dialog()
@@ -156,7 +171,10 @@ class NextWeekClient(object):
 		for subtitles_list_html in re.findall("<div class=\"pd-filebox\">(.+?)Detail</a></div></div>", subtitles_list_content.group(1).decode("utf-8"), re.IGNORECASE | re.DOTALL):
 			subtitle = {}
 			download_url, show_full_title = re.search("<div class=\"pd-float\"><a href=\"(.+?)\" >(.+?)</a></div>", subtitles_list_html, re.IGNORECASE | re.DOTALL).groups()
-			show_title_with_numbers = re.search("(.+?) ([\d]+?)x([\d]+?)$",show_full_title).groups()
+			try:
+				show_title_with_numbers = re.search("(.+?) ([\d]+?)x([\d]+?)$",show_full_title).groups()
+			except:
+				continue
 			# subtitle_version = re.search("Verze:&lt;\/div&gt;&lt;div class=\'pd-fl-m\'&gt;(.+?)&lt;\/div&gt;",subtitles_list_html, re.IGNORECASE | re.DOTALL | re.MULTILINE)
 			# if subtitle_version: log("debug", subtitle_version.group(1))
 			subtitle['full_title'] = show_full_title
