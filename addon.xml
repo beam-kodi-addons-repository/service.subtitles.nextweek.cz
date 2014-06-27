@@ -9,6 +9,7 @@
 		<summary>NextWeek.cz</summary>
 		<description lang="en">Search and download subtitles from nextweek.cz</description>
 		<description lang="cs">Vyhledavani a stahovani titulku z nextweek.cz</description>
+		<description lang="sk">Vyhladavanie a stahovanie titulkov z nextweek.cz</description>
 		<source>https://github.com/beam/service.subtitles.nextweek.cz</source>
 		<email>ondra@bimovi.cz</email>
 	</extension>
