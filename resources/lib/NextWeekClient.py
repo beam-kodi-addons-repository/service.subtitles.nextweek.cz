@@ -18,9 +18,20 @@ class NextWeekClient(object):
 		dest_dir = os.path.join(xbmc.translatePath(self.addon.getAddonInfo('profile').decode("utf-8")), 'temp')
 		dest = os.path.join(dest_dir, "download.tmp")
 
-		log(__name__,'Downloading subtitles from %s' % link)
+		log(__name__, 'Searching download link on %s' % link)
 		res = urllib.urlopen(link)
 		
+		content = res.read().decode("utf-8")
+		download_link = re.search("<a class=\"btn btn-primary pull-right\" href=\"(.+?)\">St.hnout v.echny verze</a>", content, re.IGNORECASE | re.DOTALL )
+		if download_link == None:
+			download_link = re.search("<span class=\"download\">.+?<a href=\"(.+?)\"><span class=\"text\">St.hnout</span>", content, re.IGNORECASE | re.DOTALL )
+
+		download_link = download_link.group(1).replace("&amp;","&")
+
+		log(__name__, 'Download link %s' % download_link)
+
+		res = urllib.urlopen(self.server_url + download_link)
+
 		subtitles_filename = re.search("Content\-Disposition: attachment; filename=\"(.+?)\"",str(res.info())).group(1)
 		log(__name__,'Filename: %s' % subtitles_filename)
 		subtitles_format = re.search("\.(\w+?)$", subtitles_filename, re.IGNORECASE).group(1)
@@ -41,17 +52,15 @@ class NextWeekClient(object):
 		return final_dest
 
 	def get_tv_show_list(self):
-		res = urllib.urlopen(self.server_url + "/titulky/category/1-titulky")
+		res = urllib.urlopen(self.server_url + "/titulky")
 		if not res.getcode() == 200: return None
-		tv_shows_content = re.search("<section id=\"content\" class=\"grid-block\">(.+?)</section>", res.read(), re.IGNORECASE | re.DOTALL )
+		tv_shows_content = re.search("<select name=\"serial\" id=\"serial-select\">(.+?)</select>", res.read(), re.IGNORECASE | re.DOTALL )
 		if tv_shows_content == None: return None
 
 		tv_shows = []
-		for tv_show_html in re.findall("<div class=\"pd-subcategory\">(.+?)</div>", tv_shows_content.group(1).decode("utf-8"), re.IGNORECASE | re.DOTALL):
-			tv_show_url, tv_show_name = re.search("<a href=\"(.+?)\">(.+?)</a>", tv_show_html, re.IGNORECASE).groups()
-			tv_show_with_translation = re.search("(.+?) \(.+?\)",tv_show_name)
-			if tv_show_with_translation: tv_show_name = tv_show_with_translation.group(1)
-			tv_shows.append({ "url" : tv_show_url, "title": tv_show_name })
+		for tv_show_html in re.findall("<option value=\"(.+?)\">(.+?)</option>", tv_shows_content.group(1).decode("utf-8"), re.IGNORECASE | re.DOTALL):
+			(tv_show_url, tv_show_name) = tv_show_html
+			tv_shows.append({ "url" :  tv_show_url, "title": tv_show_name })
 
 		return tv_shows
 
@@ -85,6 +94,7 @@ class NextWeekClient(object):
 			if (found_tv_show_id == -1): return None # cancel dialog
 			tvshow_url = tv_show_list[found_tv_show_id]['url']
 
+		tvshow_url = "/titulky/serial-" + tvshow_url
 		log(__name__,"Selected show URL: " + tvshow_url)
 		return tvshow_url
 
@@ -164,13 +174,13 @@ class NextWeekClient(object):
 	def search_season_subtitles(self, show_url, show_series):
 		res = urllib.urlopen(self.server_url + show_url)
 		if not res.getcode() == 200: return None
-		series_list_content = re.search("<section id=\"content\" class=\"grid-block\">(.+?)</section>", res.read(), re.IGNORECASE | re.DOTALL )
+		series_list_content = re.search("<div class=\"seasons-wrap\">(.+?)</div>", res.read(), re.IGNORECASE | re.DOTALL )
 		if series_list_content == None: return None
 
 		selected_serie_url = None
 		series_list = []
-		for series_list_html in re.findall("<div class=\"pd-subcategory\">(.+?)</div>", series_list_content.group(1).decode("utf-8"), re.IGNORECASE | re.DOTALL):
-			serie_url, serie_number = re.search("<a href=\"(.+?)\">([\d]+?)\. .+?</a>", series_list_html, re.IGNORECASE).groups()
+		for series_list_html in re.findall("<a href=\"(.+?)\" class=\".+?\">S.rie (.+?)</a>", series_list_content.group(1).decode("utf-8"), re.IGNORECASE | re.DOTALL):
+			(serie_url, serie_number) = series_list_html
 			if serie_number == show_series:
 				selected_serie_url = serie_url
 				break
@@ -180,25 +190,35 @@ class NextWeekClient(object):
 
 		res = urllib.urlopen(self.server_url + selected_serie_url)
 		if not res.getcode() == 200: return None
-		subtitles_list_content = re.search("<section id=\"content\" class=\"grid-block\">(.+?)</section>", res.read(), re.IGNORECASE | re.DOTALL )
-		if subtitles_list_content == None: return None
 
 		subtitles_list = []
-		for subtitles_list_html in re.findall("<div class=\"pd-filebox\">(.+?)Detail</a></div></div>", subtitles_list_content.group(1).decode("utf-8"), re.IGNORECASE | re.DOTALL):
+		for subtitles_list_html in re.findall("<li class=\"title complete\">(.+?)</li>", res.read().decode("utf-8"), re.IGNORECASE | re.DOTALL):
 			subtitle = {}
-			download_url, show_full_title = re.search("<div class=\"pd-float\"><a href=\"(.+?)\" >(.+?)</a></div>", subtitles_list_html, re.IGNORECASE | re.DOTALL).groups()
-			try:
-				show_title_with_numbers = re.search("(.+?) ([\d]+?)x([\d]+?)$",show_full_title).groups()
-			except:
-				continue
-			# subtitle_version = re.search("Verze:&lt;\/div&gt;&lt;div class=\'pd-fl-m\'&gt;(.+?)&lt;\/div&gt;",subtitles_list_html, re.IGNORECASE | re.DOTALL | re.MULTILINE)
-			# if subtitle_version: log("debug", subtitle_version.group(1))
-			subtitle['full_title'] = show_full_title
-			subtitle['season'] = int(show_title_with_numbers[1])
-			subtitle['episode'] = int(show_title_with_numbers[2])
-			subtitle['title'] = show_title_with_numbers[0]
 			subtitle['lang'] = "Czech"
-			subtitle['link'] = download_url
+			subtitle['season'] = int(re.search("<span class=\"season\">S(.+?)</span>", subtitles_list_html, re.IGNORECASE).group(1))
+			subtitle['episode'] = int(re.search("<span class=\"episode\">E(.+?)</span>", subtitles_list_html, re.IGNORECASE).group(1))
+			subtitle['link'] = re.search("<a href=\"(.+?)\"><span class=\"text\">St.hnout</span>", subtitles_list_html, re.IGNORECASE).group(1)
+			try:
+				subtitle['title'] = re.search("<span class=\"name\">(.+?)</span>", subtitles_list_html, re.IGNORECASE).group(1)
+			except:
+				subtitle['title'] = None
+				continue
+
+			try:
+				sub_versions = []
+				for version_html in re.findall("<span class=\"label label-default\">(.+?)</span>", subtitles_list_html, re.IGNORECASE):
+					sub_versions.append(version_html)
+				subtitle['version'] = ",".join(sub_versions)
+			except:
+				subtitle['version'] = None
+				continue
+
+			subtitle['full_title'] = str(subtitle['season']) + "x" + str(subtitle['episode'])
+			if subtitle['title']:
+				subtitle['full_title'] += " " + subtitle['title']
+			if subtitle['version']:
+				subtitle['full_title'] += " (" + subtitle['version'] + ")"
+
 			subtitles_list.append(subtitle)
 
 		return subtitles_list
