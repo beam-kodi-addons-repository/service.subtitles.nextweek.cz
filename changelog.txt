@@ -1,3 +1,6 @@
+v1.3.1 (15.7.2016)
+- oprava vyhledavani po male uprave na strankach
+
 v1.3.0 (25.2.2016)
 - uprava na nove stranky nextweek.cz
 

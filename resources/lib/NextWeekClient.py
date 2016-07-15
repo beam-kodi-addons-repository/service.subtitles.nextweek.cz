@@ -197,7 +197,7 @@ class NextWeekClient(object):
 			subtitle['lang'] = "Czech"
 			subtitle['season'] = int(re.search("<span class=\"season\">S(.+?)</span>", subtitles_list_html, re.IGNORECASE).group(1))
 			subtitle['episode'] = int(re.search("<span class=\"episode\">E(.+?)</span>", subtitles_list_html, re.IGNORECASE).group(1))
-			subtitle['link'] = re.search("<a href=\"(.+?)\"><span class=\"text\">St.hnout</span>", subtitles_list_html, re.IGNORECASE).group(1)
+			subtitle['link'] = re.search("<a href=\"(.+?)\"><span class=\"text\">P.ej.t</span>", subtitles_list_html, re.IGNORECASE).group(1)
 			try:
 				subtitle['title'] = re.search("<span class=\"name\">(.+?)</span>", subtitles_list_html, re.IGNORECASE).group(1)
 			except:
