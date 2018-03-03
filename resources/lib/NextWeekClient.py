@@ -137,7 +137,9 @@ class NextWeekClient(object):
 		if item['3let_language'] and "cze" not in item['3let_language']:
 			dialog = xbmcgui.Dialog()
 			if dialog.yesno(self.addon.getAddonInfo('name'), self._t(32100), self._t(32101)):
-				xbmc.executebuiltin("ActivateWindow(videossettings)")
+				xbmc.executebuiltin("Dialog.Close(subtitlesearch)")
+				xbmc.executebuiltin("PlayerControl(Stop)")
+				xbmc.executebuiltin("ActivateWindowAndFocus(playersettings,-96,0,-67,0)")
 			return results_with_stats(None, self.addon, title, item)
 
 		all_tv_show_list = self.get_tv_show_list()
