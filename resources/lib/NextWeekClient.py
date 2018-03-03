@@ -1,9 +1,9 @@
-# # -*- coding: utf-8 -*- 
+# # -*- coding: utf-8 -*-
 
 from utilities import log
 import urllib, re, os, copy, xbmc, xbmcgui
 import HTMLParser
-from usage_stats import results_with_stats
+from usage_stats import results_with_stats, mark_start_time
 from difflib import SequenceMatcher
 
 class NextWeekClient(object):
@@ -13,6 +13,8 @@ class NextWeekClient(object):
 		self.addon = addon
 		self._t = addon.getLocalizedString
 
+		mark_start_time()
+
 	def download(self,link):
 
 		dest_dir = os.path.join(xbmc.translatePath(self.addon.getAddonInfo('profile').decode("utf-8")), 'temp')
@@ -20,7 +22,7 @@ class NextWeekClient(object):
 
 		log(__name__, 'Searching download link on %s' % link)
 		res = urllib.urlopen(link)
-		
+
 		content = res.read().decode("utf-8")
 		download_link = re.search("<a class=\"btn btn-primary pull-right\" href=\"(.+?)\">St.hnout v.echny verze</a>", content, re.IGNORECASE | re.DOTALL )
 		if download_link == None:
@@ -36,7 +38,7 @@ class NextWeekClient(object):
 		log(__name__,'Filename: %s' % subtitles_filename)
 		subtitles_format = re.search("\.(\w+?)$", subtitles_filename, re.IGNORECASE).group(1)
 		log(__name__,"Subs in %s" % subtitles_format)
-		
+
 		subtitles_data = res.read()
 
 		log(__name__,'Saving to file %s' % dest)
@@ -103,11 +105,11 @@ class NextWeekClient(object):
 			log(__name__, "Searching title in brackets - %s" % title)
 			search_second_title = re.match(r'.+ \((.{3,})\)',title)
 			if search_second_title and not re.search(r'^[\d]{4}$',search_second_title.group(1)): title = search_second_title.group(1)
-		
+
 		if re.search(r', The$',title,re.IGNORECASE):
 			log(__name__, "Swap The - %s" % title)
 			title =  "The " + re.sub(r'(?i), The$',"", title) # normalize The
-		
+
 		if self.addon.getSetting("try_cleanup_title") == "true":
 			log(__name__, "Title cleanup - %s" % title)
 			title = re.sub(r"(\[|\().+?(\]|\))","",title) # remove [xy] and (xy)
@@ -222,5 +224,3 @@ class NextWeekClient(object):
 			subtitles_list.append(subtitle)
 
 		return subtitles_list
-
-
